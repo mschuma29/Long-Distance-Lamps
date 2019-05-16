@@ -1,0 +1,287 @@
+/*
+***LONG DISTANCE RGB TOUCH LAMP V1***
+*/
+
+//Pin variables
+int touchSensor = D1; //D1
+int button = A3; //D2
+int knob1 = A0; //A0
+int knob2 = A1; //A1
+int knob3 = A2; //A2
+int indicator = D2;
+
+
+
+//library stuff for the led's goes below here 
+#include <FastLED.h>
+FASTLED_USING_NAMESPACE
+#define NUM_LEDS 60
+#define DATA_PIN D0
+CRGB leds[NUM_LEDS];
+
+//this lamp's sensor values (0 by default)
+int touchVal = 0;  //if this is 0, the touch sensor isn't being touched
+int knob1Val = 0;   //knob values will be formatted/set to be between 0 and 256
+int knob2Val = 0;   //this means it be super easy to use the knob values for setting led colors
+int knob3Val = 0;
+int buttonVal = 0; //if the toggle button has been pressed == 1
+
+//the partner lamp's values (0 by default)
+int partnerTouchVal = 0;
+int partnerKnob1Val = 0;
+int partnerKnob2Val = 0;
+int partnerKnob3Val = 0;
+String partnerID = (ENTER PARTNER ID HERE);
+
+int lastUpdateCount = 0;    //keep track of how many loops since we updated our partner
+
+
+void setup() {
+    
+    //led setup
+    FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+    
+    //touch sensor setup
+    pinMode(touchSensor, INPUT);
+     
+    //button setup
+    pinMode(button, INPUT);
+    
+    pinMode(indicator, OUTPUT);
+    
+    //partner value setup
+    Particle.subscribe("lamp2Vals", recievePartnerVals, partnerID);
+
+}
+
+void checkInputValues(){
+    //check the input devices for their values and update the variables
+    //we map them to rgb standards while we set the variables, to avoid mix up down the line
+    knob1Val = ( ( (analogRead(knob1)) -170) * 250 ) / 3835;
+    knob2Val = ( ( (analogRead(knob2)) -170) * 250 ) / 3835;
+    knob3Val = ( ( (analogRead(knob3)) -170) * 250 ) / 3835;
+
+    //knob1Val = (analogRead(knob1) * 250 ) / 4095;
+    //knob2Val = (analogRead(knob2) * 250 ) / 4095;
+    //knob3Val = (analogRead(knob3) * 250 ) / 4095;
+    
+    if(knob1Val < 11){
+        knob1Val = 0;
+    }
+    
+    if(knob2Val < 11){
+        knob2Val = 0;
+    }
+    
+    if(knob3Val < 11){
+        knob3Val = 0;
+    }
+    
+    
+    if(digitalRead(touchSensor) == HIGH){ //may need to use custom voltage number instead of HIGH because this is a 3.3v board
+        touchVal = 1;
+    }else{
+        touchVal = 0;
+    }
+    
+    
+    if(analogRead(button) > 4000){
+        buttonVal = 1;
+    }else{
+        buttonVal = 0;
+    }
+    
+    /*
+    if(Particle.connected() != 1){
+        digitalWrite(indicator, HIGH);
+    }else{
+        digitalWrite(indicator, LOW);
+    }
+    */     
+    if(partnerTouchVal >= 1 || partnerKnob1Val >= 1 || partnerKnob2Val >= 1 || partnerKnob3Val >= 1) {
+        digitalWrite(indicator, HIGH);
+    }else{
+        digitalWrite(indicator, LOW);
+    }
+    
+}
+
+
+
+void updatePartner(){
+    //push out our variables has one string
+    //using one string instead of 4 integers makes the lamps FAR more efficient and reliable 
+    Particle.publish("lamp1Vals", String(touchVal) + "," + String(knob1Val) + "," + String(knob2Val) + "," + String(knob3Val));
+    
+}
+
+void recievePartnerVals(String event, String data){ //this function recieves te data from the partner lamp
+
+    int comma1 = findComma(data, 1);
+	int comma2 = findComma(data, 2);
+    int comma3 = findComma(data, 3);
+	        
+    partnerTouchVal = data.substring(0, comma1).toInt();
+    partnerKnob1Val = data.substring(comma1 +1, comma2).toInt();
+	partnerKnob2Val = data.substring(comma2 +1, comma3).toInt();
+	partnerKnob3Val = data.substring(comma3 +1, data.length()).toInt();
+	    
+}
+
+int findComma(String data, int comma){  //this function assists in breaking down the recieved data from the partner lamp
+	    
+    int commaNumber = 0;
+	    
+	    for(int i = 0; i < data.length(); i++){
+	        
+	        if( data.substring(i,i+1).equals(",") && commaNumber == (comma -1) ){
+	            
+	            return i;
+	            
+	        }else if(data.substring(i,i+1).equals(",") && commaNumber != (comma -1) ){
+	            
+	            commaNumber++;
+	            
+	        }
+	    }
+	    return 0;
+}
+
+
+void shiftToColors(int red, int green, int blue, int time){   //shifts colors to the desired value
+    
+    
+    for(int j = 0; j < 256; j++){
+        
+        checkInputValues(); //before we continue doing any changes, check if the input values have chnaged. if they have, the method using this method may decide to quit
+    
+        for(int i = 0; i < NUM_LEDS; i++){
+            
+            if(buttonVal == 1 && partnerTouchVal == 0){
+                
+
+                if(leds[i].r > red){
+                    
+                    leds[i].r = leds[i].r - 1;
+                    
+                }else if(leds[i].r < red){
+                    
+                    leds[i].r = leds[i].r + 1;
+                }
+                
+                
+                if(leds[i].g > green){
+                    
+                    leds[i].g = leds[i].g - 1;
+                    
+                }else if(leds[i].g < green){
+                    
+                    leds[i].g = leds[i].g + 1;
+                    
+                }
+                
+                
+                if(leds[i].b > blue){
+                    
+                    leds[i].b = leds[i].b - 1;
+                    
+                }else if(leds[i].b < blue){
+                    
+                    leds[i].b = leds[i].b + 1;
+                    
+                }
+                
+                FastLED.show();
+                delay(time);
+                
+            }
+        }
+        
+    }
+    
+}
+
+void cycleColors(){
+    
+    while(buttonVal == 1 && partnerTouchVal == 0){//we only keep shifting the color while the toggle button is on, if it's not, the loop ends and we stop cycling colors
+    
+    if(buttonVal == 1 && partnerTouchVal == 0){
+        shiftToColors(0,0,255,5); //shift to blue
+    }
+     
+    if(buttonVal == 1 && partnerTouchVal == 0){   
+        shiftToColors(0,255,255,5); //shift to blue-green
+    }
+     
+    if(buttonVal == 1 && partnerTouchVal == 0){   
+        shiftToColors(0,255,0,5);   //shift to green
+    }
+     
+    if(buttonVal == 1 && partnerTouchVal == 0){   
+        shiftToColors(255,255,0,5);   //shift to green-red
+    }
+      
+    if(buttonVal == 1 && partnerTouchVal == 0){  
+        shiftToColors(255,0,0,5); //shift to red
+    }
+        
+    if(buttonVal == 1 && partnerTouchVal == 0){ 
+        shiftToColors(255,0,255,5); //shift to red-blue
+    }
+
+    }
+    //when this method's loop eventually ends (button is OFF), the main loop will finish and run again, then update to the current knob values
+}
+
+void updateLEDToPartnerVal(){
+    //I take the partner touch values, and slowly update the led ring one by one to give it loop effect to the new colors (the new colors spiral up the orb over the old ones)
+    for(int i = 0; i < NUM_LEDS; i ++){ 
+        leds[i].r = partnerKnob1Val;
+        leds[i].g = partnerKnob2Val;
+        leds[i].b = partnerKnob3Val;
+        FastLED.show();
+        delay(25); //delay of 17 milliseconds between each individual led update
+  }
+}
+
+void updateLEDToCurrentVal(){
+    //update to our current knob values
+    for(int i = 0; i < NUM_LEDS; i ++){ //go through all the leds, and set them to the proper values
+        leds[i].r = knob1Val;
+        leds[i].g = knob2Val;
+        leds[i].b = knob3Val;
+  }
+  FastLED.show();
+}
+
+void loop() {
+    
+    //update all the values at the beginning of the loop
+    checkInputValues();
+    
+    if(lastUpdateCount > 250){
+        updatePartner();
+        lastUpdateCount = 0;
+    }
+    //partner is checked automatically thanks to particle.subscribe functions!
+
+
+    if(partnerTouchVal == 0){   //partner isn't being touched, use our settings
+    
+        if(buttonVal == 0){ //we don't want to randomize, use the knob values
+            
+            updateLEDToCurrentVal();
+        
+        }else{  //we want to cycle the colors
+            
+            cycleColors();
+            
+        }
+    }else{  //partner is being touched, shift to their settings
+        updateLEDToPartnerVal();
+    }
+    
+    
+    lastUpdateCount++;
+    
+}
