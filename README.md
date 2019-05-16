@@ -1,5 +1,5 @@
 # Long-Distance-Lamps
-This code is designed to run on a Particle Photon. It's function is to create a set of twin 'lamps' that are linked together via WiFi. Both lamps are capable of independently changing to any desired color, and also sharing that color with the partner lamp. WiFi Setup is handled by the Particle Photon setup, but this can be pre-set if desired.
+This code is designed to run on a Particle Photon. It's function is to create a set of twin 'lamps' that are linked together via WiFi. WiFi Setup is handled by the Particle Photon setup, but this can be pre-set if desired. Both lamps are capable of independently changing to any desired color, and also sharing that color with the partner lamp. When a color is shared to the partner lamp, the partner lamp will turn to that color for as long as the color is being shared.
 
 Each lamp has a number of devices for input. This includes three knobs, one button, and one touch sensor.
 
